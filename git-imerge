@@ -3012,6 +3012,8 @@ def main(args):
             request_user_merge(merge_state, e.i1, e.i2)
         else:
             sys.stderr.write('Merge is complete!\n')
+            merge_state.simplify(merge_state.branch)
+            MergeState.remove(merge_state.name)
     elif options.subcommand == 'merge':
         require_clean_work_tree('proceed')
 
@@ -3074,6 +3076,8 @@ def main(args):
             request_user_merge(merge_state, e.i1, e.i2)
         else:
             sys.stderr.write('Merge is complete!\n')
+            merge_state.simplify(merge_state.branch)
+            MergeState.remove(merge_state.name)
     elif options.subcommand == 'rebase':
         require_clean_work_tree('proceed')
 
@@ -3140,6 +3144,8 @@ def main(args):
             request_user_merge(merge_state, e.i1, e.i2)
         else:
             sys.stderr.write('Merge is complete!\n')
+            merge_state.simplify(merge_state.branch)
+            MergeState.remove(merge_state.name)
     elif options.subcommand == 'remove':
         MergeState.remove(choose_merge_name(options.name, default_to_unique=False))
     elif options.subcommand == 'continue':
@@ -3159,6 +3165,8 @@ def main(args):
             request_user_merge(merge_state, e.i1, e.i2)
         else:
             sys.stderr.write('Merge is complete!\n')
+            merge_state.simplify(merge_state.branch)
+            MergeState.remove(merge_state.name)
     elif options.subcommand == 'record':
         merge_state = read_merge_state(options.name)
         try:
@@ -3176,6 +3184,8 @@ def main(args):
             pass
         else:
             sys.stderr.write('Merge is complete!\n')
+            merge_state.simplify(merge_state.branch)
+            MergeState.remove(merge_state.name)
     elif options.subcommand == 'autofill':
         require_clean_work_tree('proceed')
         merge_state = read_merge_state(options.name)
