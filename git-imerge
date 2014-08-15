@@ -587,10 +587,16 @@ def automerge(commit1, commit2, msg=None):
     AutomaticMergeFailed on error.  This must be called with a clean
     worktree."""
 
+    if msg is None:
+        msg = 'auto-imerge-none'
+
+    return automerge_fast(commit1, commit2, msg)
+    return automerge_slow(commit1, commit2, msg)
+
+def automerge_slow(commit1, commit2, msg):
     call_silently(['git', 'checkout', '-f', commit1])
     cmd = ['git', '-c', 'rerere.enabled=false', 'merge']
-    if msg is not None:
-        cmd += ['-m', msg]
+    cmd += ['-m', msg]
     cmd += [commit2]
     try:
         call_silently(cmd)
@@ -602,6 +608,26 @@ def automerge(commit1, commit2, msg=None):
     else:
         return get_commit_sha1('HEAD')
 
+def automerge_fast(commit1, commit2, msg):
+    try:
+        env = os.environ.copy()
+        env[str('GIT_INDEX_FILE')] = str('.git/index-imerge')
+
+        base = check_output(['git', 'merge-base', commit1, commit2], env=env).strip()
+
+        if "" != check_output(['git', 'read-tree', '--empty'], env=env).strip():
+            raise CalledProcessError(0, "1")
+        if "" != check_output(['git', 'read-tree', '-m', '--aggressive', '-i', base, commit1, commit2], env=env).strip():
+            raise CalledProcessError(0, "2")
+        if "" != check_output(['git', 'merge-index', 'git-imerge-one-file', '-a'], env=env).strip():
+            raise CalledProcessError(0, "3")
+
+        tree = check_output(['git', 'write-tree'], env=env).strip()
+        commit = check_output(['git', 'commit-tree', tree, '-p', commit1, '-p', commit2, '-m', msg], env=env).strip()
+
+        return commit
+    except CalledProcessError:
+        raise AutomaticMergeFailed(commit1, commit2)
 
 class MergeRecord(object):
     # Bits for the flags field:

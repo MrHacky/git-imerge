@@ -1,0 +1,75 @@
+#!/bin/sh
+#
+# This is based on git-merge-one-file modified to implement
+# git-imerge 'automerge' without touching the working copy
+#
+# We will be called with these arguments:
+#   $1 - original file SHA1 (or empty)
+#   $2 - file in branch1 SHA1 (or empty)
+#   $3 - file in branch2 SHA1 (or empty)
+#   $4 - pathname in repository
+#   $5 - original file mode (or empty)
+#   $6 - file in branch1 mode (or empty)
+#   $7 - file in branch2 mode (or empty)
+#
+# We assume we are called after a '--aggressive' read-tree merge
+# so we don't need to handle any of the 'trivial' cases
+
+USAGE='<orig blob> <our blob> <their blob> <path>'
+USAGE="$USAGE <orig mode> <our mode> <their mode>"
+LONG_USAGE="Usage: git imerge-one-file $USAGE
+
+Blob ids and modes should be empty for missing files."
+
+if ! test "$#" -eq 7
+then
+	echo "$LONG_USAGE"
+	exit 1
+fi
+
+# abort early for any permission changes
+
+if [ "$6" != "$7" ]; then
+	echo "ERROR: permissions conflict $6->$7."
+	exit 1
+fi
+
+case "${1:-.}${2:-.}${3:-.}" in
+#
+# Modified in both, but differently.
+#
+"$1$2$3")
+
+	case ",$6,$7," in
+	*,120000,*)
+		echo "ERROR: $4: Not merging symbolic link changes."
+		exit 1
+		;;
+	*,160000,*)
+		echo "ERROR: $4: Not merging conflicting submodule changes."
+		exit 1
+		;;
+	esac
+
+	#echo "Auto-merging $4"
+
+	src1=`git-unpack-file $2`
+	orig=`git-unpack-file $1`
+	src2=`git-unpack-file $3`
+	git merge-file "$src1" "$orig" "$src2"
+	ret=$?
+	if [ $ret -ne 0 ]; then
+		rm -f -- "$orig" "$src1" "$src2"
+		echo "ERROR: content conflict in $4"
+		exit 1
+	fi
+
+	hashobj=`git hash-object -w --path="$4" -- "$src1"`
+	rm -f -- "$orig" "$src1" "$src2"
+	exec git update-index --cacheinfo "$6" "$hashobj" "$4"
+	;;
+*)
+	echo "ERROR: $4: Not handling case $1 -> $2 -> $3"
+	;;
+esac
+exit 1
